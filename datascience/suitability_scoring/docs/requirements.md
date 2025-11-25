@@ -76,3 +76,6 @@ These are beyond the scope of the project due to insufficient data.
 For each of the candidate tree species:
 * Suitability score - number
 * Explanation for score - text
+
+# Approach
+The first implementation will use a Multiple-Criteria-Decision-Analysis approach as per the PO current prototype.
