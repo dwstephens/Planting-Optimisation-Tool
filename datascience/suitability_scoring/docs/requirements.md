@@ -52,7 +52,6 @@ These are the inputs in addition to the current inputs.
         *  Nitrogen-fixing - categorical (yes/no)
     *  stress tolerance
         *  Shade tolerant - categorical (yes/no)
-        *  Flood tolerant - categorical (yes/no)
     *  erosion control
         * bank stabilising - categorical (yes/no)
 
