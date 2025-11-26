@@ -11,6 +11,7 @@
 | `elevation_m`    | Float       | `m` | Elevation above sea level       | Required, Range: `0`–`2963`             |
 | `ph`                 | Float       | pH units | Soil acidity/alkalinity         | Required, Range: `4.0`–`8.5`             |
 | `soil_texture`          | Categorical | —        | Dominant soil texture              | Required, Allowed: `sand, loamy sand, sandy loam, loam, silt loam, silt, sandy clay loam, clay loam, silty clay loam, sandy clay, silty clay, clay`    |
+| `area_ha`          | Float       | `ha`  | Farm area            | Range: 0 to 100                 |
 | `latitude`           | Float       | degrees  | Geographic latitude             | Range: -90 to 90                   |
 | `longitude`          | Float       | degrees  | Geographic longitude            | Range: -180 to 180                 |
 | `costal`    | Boolean   | —        | Is a costal environment   | Required, Allowed: True/False    |
