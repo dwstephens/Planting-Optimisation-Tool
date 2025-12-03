@@ -328,7 +328,7 @@ def score_farms_species_by_id_list(
 
         # Attach unknown ID note if any
         if unknown_ids:
-            explanations.append(
+            farm_explanations.append(
                 {
                     "species_id": None,
                     "mcda_score": None,
