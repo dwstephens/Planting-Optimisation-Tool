@@ -1,0 +1,87 @@
+import pandas as pd
+import numpy as np
+import pytest
+
+from suitability_scoring.scoring.scoring import subset_species_by_ids
+
+
+def make_species_df_int_ids():
+    return pd.DataFrame(
+        {
+            "species_id": [101, 102, 103, 104, np.nan],
+            "name": ["A", "B", "C", "D", "Missing"],
+            "elevation_m": [100, 1200, 80, 150, 0],
+        }
+    )
+
+
+def make_species_df_str_ids():
+    return pd.DataFrame(
+        {
+            "species_code": ["SP-001", "SP-002", "SP-003", "SP-004", None],
+            "name": ["A", "B", "C", "D", "Missing"],
+            "elevation_m": [100, 1200, 80, 150, 0],
+        }
+    )
+
+
+def test_empty_valid_ids_returns_empty_dataframe():
+    df = make_species_df_int_ids()
+    out = subset_species_by_ids(df, "species_id", valid_ids=[])
+    # Should keep the schema but have no rows
+    assert out.empty
+    assert list(out.columns) == list(df.columns)
+    assert out.dtypes.equals(df.dtypes)
+
+
+def test_filter_membership_basic_int_ids():
+    df = make_species_df_int_ids()
+    valid = [101, 103]
+    out = subset_species_by_ids(df, "species_id", valid_ids=valid)
+    assert sorted(out["species_id"].dropna().tolist()) == [101, 103]
+    # Check row count
+    assert len(out) == 2
+    # Names aligned
+    assert set(out["name"]) == {"A", "C"}
+
+
+def test_filter_membership_basic_str_ids():
+    df = make_species_df_str_ids()
+    valid = ["SP-001", "SP-003"]
+    out = subset_species_by_ids(df, "species_code", valid_ids=valid)
+    assert set(out["species_code"]) == {"SP-001", "SP-003"}
+    assert set(out["name"]) == {"A", "C"}
+
+
+def test_duplicates_in_valid_ids_do_not_duplicate_rows():
+    df = make_species_df_int_ids()
+    valid = [101, 101, 104, 104]
+    out = subset_species_by_ids(df, "species_id", valid_ids=valid)
+    # Only unique matches present once
+    assert sorted(out["species_id"].dropna().tolist()) == [101, 104]
+    assert len(out) == 2
+
+
+def test_nonexistent_id_column_raises_keyerror():
+    df = make_species_df_int_ids()
+    with pytest.raises(KeyError):
+        subset_species_by_ids(df, "unknown_id_col", valid_ids=[101])
+
+
+def test_mixed_types_in_valid_ids_do_not_match_other_types():
+    df = make_species_df_int_ids()
+    # '101' (str) should not match 101 (int) in the DataFrame
+    out = subset_species_by_ids(df, "species_id", valid_ids=["101", "104"])
+    # Only 104 will not match either because types differ (int column vs str ids)
+    # Expect no matches due to type mismatch
+    assert out.empty
+
+
+def test_preserves_dataframe_schema_and_order():
+    df = make_species_df_int_ids()
+    valid = [104]
+    out = subset_species_by_ids(df, "species_id", valid_ids=valid)
+    # Same columns, same order
+    assert list(out.columns) == list(df.columns)
+    # dtypes unchanged
+    assert out.dtypes.equals(df.dtypes)
