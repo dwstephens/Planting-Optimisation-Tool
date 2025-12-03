@@ -156,6 +156,16 @@ def score_farms_species_by_id_list(
 
         # Check if the filtered dataframe is empty. i.e. no compatible trees for this farm
         if sub_df.empty:
+            if unknown_ids:
+                farm_explanations.append(
+                    {
+                        "species_id": None,
+                        "mcda_score": None,
+                        "features": {},
+                        "note": f"Exclusion function provided {len(unknown_ids)} unknown species_id(s): {unknown_ids[:5]}{'...' if len(unknown_ids) > 5 else ''}",
+                    }
+                )
+                explanations[farm_id] = farm_explanations
             continue
 
         # Loop through each tree species in the filtered dataframe
