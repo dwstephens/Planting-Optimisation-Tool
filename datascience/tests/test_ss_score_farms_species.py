@@ -96,7 +96,7 @@ def test_scoring_exact_match(farms_df, species_df, basic_cfg, params_index):
     assert not result.empty, "Farm 101 / Species 1 row is missing."
 
     # Expect 1.0 because 6.5 is between 6.0-7.0 AND clay == clay
-    assert result.iloc[0]["mcda_score"] == 1.0
+    assert result.iloc[0]["mcda_score"] == pytest.approx(1.0)
 
 
 def test_scoring_mismatch(farms_df, species_df, basic_cfg, params_index):
@@ -115,7 +115,7 @@ def test_scoring_mismatch(farms_df, species_df, basic_cfg, params_index):
     result = scores[(scores["farm_id"] == 101) & (scores["species_id"] == 2)]
 
     # Expect 0.0 because ph is out of range AND soil_texture mismatch
-    assert result.iloc[0]["mcda_score"] == 0.0
+    assert result.iloc[0]["mcda_score"] == pytest.approx(0.0)
 
 
 def test_missing_numeric_data(basic_cfg, params_index):
@@ -250,8 +250,8 @@ def test_zero_denominator(basic_cfg, params_index):
 
     result = scores[(scores["farm_id"] == 102) & (scores["species_id"] == 1)]
 
-    # Expect 0.0 because all features retun a None score
-    assert result.iloc[0]["mcda_score"] == 0.0
+    # Expect 0.0 because all features return a None score
+    assert result.iloc[0]["mcda_score"] == pytest.approx(0.0)
 
 
 def test_unknown_ids_handling_empty_subset(
