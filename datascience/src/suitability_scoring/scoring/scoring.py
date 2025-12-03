@@ -235,7 +235,7 @@ def score_farms_species_by_id_list(
 
                     else:  # No valid scoring method selected
                         raise ValueError(
-                            f"Unknown numeric scoring method '{score_method}' for {feat}"
+                            f"Unknown numeric scoring method '{score_method}' for '{feat}'"
                         )
 
                     # Store score for this feature
@@ -253,8 +253,6 @@ def score_farms_species_by_id_list(
 
                 # Categorical feature
                 elif meta["type"] == "categorical":
-                    # Get scoring method
-                    score_method = meta.get("score_method", "cat_exact")
 
                     # Get categorical dictionary
                     cat_cfg = meta.get("categorical", {}) or {}
@@ -300,7 +298,7 @@ def score_farms_species_by_id_list(
 
                 else:  # Feature type not numerical or categorical
                     raise ValueError(
-                        f"Unknown feature type '{meta['type']}' for {feat}"
+                        f"Unknown feature type '{meta['type']}' for '{feat}'"
                     )
 
                 # Accumulate scores for existing scores and weights
@@ -338,7 +336,7 @@ def score_farms_species_by_id_list(
             )
         explanations[farm_id] = farm_explanations
 
-    # For debugging only
+    # For testing and debugging
     scores_df = pd.DataFrame(
         results, columns=[farm_id_col, species_id_col, "mcda_score"]
     )
