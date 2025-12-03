@@ -253,7 +253,6 @@ def score_farms_species_by_id_list(
 
                 # Categorical feature
                 elif meta["type"] == "categorical":
-
                     # Get categorical dictionary
                     cat_cfg = meta.get("categorical", {}) or {}
 
