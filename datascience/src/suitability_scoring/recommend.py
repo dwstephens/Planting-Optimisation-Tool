@@ -119,7 +119,7 @@ def build_payload_for_farm(farm_id):
 
     """
     # Call suitability scoring to get recommendation results
-    results = mcda_scorer(list(farm_id))
+    results = mcda_scorer([farm_id])
 
     # Build the recommendations and return
     return build_farm_recommendations(results, farm_id)
