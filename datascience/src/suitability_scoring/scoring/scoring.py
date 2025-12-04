@@ -92,9 +92,44 @@ def score_farms_species_by_id_list(
     params_index,
 ):
     """
-    Non-vectorized scoring with upstream exclusion that returns a list of valid species
-    IDs per farm. Uses per-species params (score_method and weights) via params_index,
-    with YAML defaults.
+    This function performs a granular, non-vectorized suitability assessment to score
+    specific tree species against farm profiles. This function acts as an orchestration
+    layer that combines upstream exclusion logic with a weighted Multi-Criteria Decision
+    Analysis (MCDA) scoring engine.
+
+    Overview
+    The function iterates through every farm in `farms_df`. For each farm, it retrieves
+    a shortlist of candidate species and evaluates them feature-by-feature. Unlike
+    vectorized operations, this iterative approach allows for species-specific parameter
+    overrides (via `params_index`) and generates detailed textual explanations for every
+    scoring decision.
+
+    Exclusion Logic
+    Before scoring, the function invokes `get_valid_tree_ids` to retrieve a list of
+    viable species IDs for the current farm. Only these "valid" species are passed to
+    the scoring engine. If the exclusion function returns IDs not present in `species_df`
+    , they are logged as "unknown species" in the explanations output but skipped for
+    scoring.
+
+    Scoring Methodology
+    Scoring is performed using a weighted arithmetic mean of individual feature scores.
+    Feature behaviur is defined in `cfg['features']` and applied as follows:
+
+    * Numerical features: Evaluated using range logic (e.g., `num_range`). A score of
+        1.0 is awarded if the farm's value falls between the species' min/max
+        requirements. Zero scores are assigned for values outside this range or missing
+        data.
+
+    * Categorical features: Evaluated using preference matching (e.g., `cat_exact`).
+        Checks if the farm's attribute (e.g., soil texture) exists within the species'
+        list of preferred types. A score of 1.0 is returned is an exact match is found
+        and zero if no match is found.
+
+    Traceability and Explanations
+    In addition to the raw scores, the function generates a `explanations` dictionary.
+    This structure maps every farm-species pair to a breakdown of how each feature
+    contributed to the final score, including the raw values used, the specific scoring
+    rule triggered (e.g., "below minimum", "exact match"), and any missing data warnings.
 
     :param farms_df: DataFrame with farm profile.
     :param species_df: DataFrame with tree species profile.
