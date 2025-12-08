@@ -76,7 +76,7 @@ def species_params_df():
                 "feature": "soil_texture",
                 "score_method": np.nan,
                 "weight": np.nan,
-            },            
+            },
         ]
     )
 
@@ -194,7 +194,6 @@ def test_get_params_partial_fallback(species_params_df, basic_cfg):
 
     assert result["weight"] == pytest.approx(0.5)  # Default (fallback)
     assert result["score_method"] == "cat_exact"  # Default (fallback)
-
 
 
 def test_get_params_zero_weight_edge_case(species_params_df, basic_cfg):
