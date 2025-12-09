@@ -134,30 +134,70 @@ def score_farms_species_by_id_list(
         "species_common_name", "species_common_name"
     )
 
-    # Initialise results to an empty list
-    results = []
-
-    # Initialise explanation to an empty dictionary
-    explanations = {}
-
     # Create a dictionary for species data so we don't have to filter the dataframe every loop
     species_lookup = {row[species_id_col]: row for row in species_df.to_dict("records")}
 
     # Create a set of all the species ids in the species dataframe
     all_species_ids = set(species_lookup.keys())
 
+    # Create a rules dictionary for optimisation
+    # Structure: { species_id: [ (feature_key, rule_metadata, pre_calc_values), ... ] }
+    optimized_rules = {}
+
+    for sp_id, sp in species_lookup.items():
+        rules_list = []
+
+        for feat, meta in features_cfg.items():
+            # Resolve overrides and defaults once
+            params = get_feature_params(params_index, cfg, sp_id, feat)
+
+            weight = params["weight"]
+            score_method = params["score_method"]
+
+            # Pack the specific data needed for scoring this feature
+            rule_data = {
+                "feat": feat,
+                "weight": weight,
+                "short_name": meta["short"],
+                "type": meta["type"],
+                "score_method": score_method,
+            }
+
+            if score_method == "num_range":
+                min_v = sp.get(f"{feat}_min")
+                max_v = sp.get(f"{feat}_max")
+                rule_data["params_out"] = {"min": min_v, "max": max_v}
+                rule_data["args"] = (min_v, max_v)
+
+            elif score_method == "cat_exact":
+                prefs = parse_prefs(sp.get(f"preferred_{feat}"))
+                cat_cfg = meta.get("categorical", {}) or {}
+                exact_score = float(cat_cfg.get("exact_match", 1.0))
+                rule_data["preferred"] = prefs
+                rule_data["args"] = (prefs, exact_score)
+
+            rules_list.append(rule_data)
+
+        optimized_rules[sp_id] = rules_list
+
+    # Initialise results to an empty list
+    results = []
+
+    # Initialise explanation to an empty dictionary
+    explanations = {}
+
     # Create a dictionary from dataframe
-    farms_dicts = farms_df.to_dict('records')
+    farms_dicts = farms_df.to_dict("records")
 
     # Loop through all rows of the farms dataframe
-    for farm in farms_dicts:    
+    for farm in farms_dicts:
         # Get the farm id for the current farm
         farm_id = farm[farm_id_col]
 
         # Call the exclusion function to get the list of candidate tress for the current farm
         # return an empty list if the function returns None or is an empty list
         candidate_species_ids = get_valid_tree_ids(farm) or []
-        
+
         # Create a list of id's that are in the valid_id list but not found in the species dataframe
         # This should always be empty
         unknown_ids = [id for id in candidate_species_ids if id not in all_species_ids]
@@ -207,47 +247,44 @@ def score_farms_species_by_id_list(
             # Initialise the denominator score
             denom = 0.0
 
-            # Loop through each feature defined in the configuration file
-            for feat, meta in features_cfg.items():
-                # Combine species specific params with YAML defaults
-                params = get_feature_params(params_index, cfg, species_id, feat)
+            # Grab the pre-computer rules for this species
+            rules = optimized_rules[species_id]
+
+            # Iterate through the rules list
+            for rule in rules:
+                # Get feature name from rule
+                feat = rule["feat"]
+
+                # Get the farm's value for this feature
+                farm_val = farm.get(feat)
 
                 # Get scoring method for this feature
-                score_method = params["score_method"]
+                score_method = rule["score_method"]
 
                 # Get weight for this feature
-                w = params["weight"]
+                w = rule["weight"]
 
                 # Numeric feature
-                if meta["type"] == "numeric":
-                    # Get minimum value for the feature
-                    min_v = sp.get(f"{feat}_min")
-
-                    # Get maximum value for the feature
-                    max_v = sp.get(f"{feat}_max")
-
-                    # Get the farm's value for this feature
-                    x = farm.get(feat)
-
+                if rule["type"] == "numeric":
                     # Range scoring
                     if score_method == "num_range":
+                        # Get minimum/maximum value for the feature
+                        min_v, max_v = rule["args"]
+
                         # Score this feature
-                        score = numerical_range_score(x, min_v, max_v)
+                        score = numerical_range_score(farm_val, min_v, max_v)
 
                         # Determine reason for score
                         if score == 1.0:
                             reason = "inside preferred range"
 
                         elif score == 0.0:
-                            if x < min_v:
+                            if farm_val < min_v:
                                 reason = "below minimum"
                             else:
                                 reason = "above maximum"
                         else:
                             reason = "missing data"
-
-                        # Store the parameters used for the scoring
-                        params_out = {"min": min_v, "max": max_v}
 
                     else:  # No valid scoring method selected
                         raise ValueError(
@@ -259,33 +296,24 @@ def score_farms_species_by_id_list(
 
                     # Store explanation for this feature
                     feature_explain[feat] = {
-                        "short_name": meta["short"],
+                        "short_name": rule["short_name"],
                         "type": "numerical",
-                        "farm_value": x,
+                        "farm_value": farm_val,
                         "score": score,
                         "reason": reason,
-                        "params": params_out,
+                        "params": rule["params_out"],
                     }
 
                 # Categorical feature
-                elif meta["type"] == "categorical":
-                    # Get categorical dictionary
-                    cat_cfg = meta.get("categorical", {}) or {}
-
-                    # Get farm value for this feature
-                    val = farm.get(feat)
-
-                    # Get list of preferences for this feature
-                    prefs = parse_prefs(sp.get(f"preferred_{feat}"))
-
+                elif rule["type"] == "categorical":
                     # Check if the score method is for an exact categorical match
                     if score_method == "cat_exact":
-                        # Get the score for an exact match
-                        exact_score = float(cat_cfg.get("exact_match", 1.0))
+                        # Get list of preferences and score for an exact match for this feature
+                        prefs, exact_match_score = rule["args"]
 
                         # Call exact match scoring function
                         score = categorical_exact_score(
-                            val, prefs, exact_score=exact_score
+                            farm_val, prefs, exact_score=exact_score
                         )
                         if score is None:
                             reason = "missing or no preference"
@@ -303,10 +331,10 @@ def score_farms_species_by_id_list(
 
                     # Store explanation
                     feature_explain[feat] = {
-                        "short_name": meta["short"],
+                        "short_name": rule["short_name"],
                         "type": "categorical",
-                        "farm_value": val,
-                        "preferred": prefs,
+                        "farm_value": farm_val,
+                        "preferred": rule["preferred"],
                         "score": score,
                         "reason": reason,
                     }
