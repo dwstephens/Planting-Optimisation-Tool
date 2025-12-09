@@ -150,7 +150,6 @@ def score_farms_species_by_id_list(
     farms_dicts = farms_df.to_dict('records')
 
     # Loop through all rows of the farms dataframe
-#    for _, farm in farms_df.iterrows():
     for farm in farms_dicts:    
         # Get the farm id for the current farm
         farm_id = farm[farm_id_col]
@@ -372,6 +371,9 @@ def mcda_scorer(farm_ids):
     :param farm_ids: List of farm id's to score.
     :returns:
     """
+
+    import timeit
+
     # Config variables - These could be arguments using an argparse
     # Path to farms Excel
     farms_path = "data/farms_cleaned.xlsx"
@@ -407,7 +409,7 @@ def mcda_scorer(farm_ids):
     ## Replace this with exclusion rules ##
     #######################################
     species_id_col = cfg.get("ids", {}).get("species", "species_id")
-    all_ids = species_df[species_id_col].tolist()[:3]
+    all_ids = species_df[species_id_col].tolist()[::]
 
     def provider(farm_row):
         # Pass-through: all species IDs are valid (no upstream exclusion)
@@ -423,6 +425,9 @@ def mcda_scorer(farm_ids):
     # Return the subset of the dataframe
     sub_farms_df = farms_df[farms_df[farm_id_col].isin(farm_set)]
 
+    # Calculate start time
+    start = timeit.default_timer()
+
     # Score
     scores_df, explanations = score_farms_species_by_id_list(
         sub_farms_df,
@@ -431,5 +436,11 @@ def mcda_scorer(farm_ids):
         get_valid_tree_ids=provider,
         params_index=params_dict,
     )
+
+    # Calculate Stop time
+    stop = timeit.default_timer()
+    exec_time = stop - start
+
+    print(f"Time taken: {exec_time}")
 
     return explanations
