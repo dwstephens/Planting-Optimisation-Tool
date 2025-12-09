@@ -7,29 +7,6 @@ from suitability_scoring.utils.params import build_species_params_dict
 ########################################################################################
 # Helper functions
 ########################################################################################
-def subset_species_by_ids(species_df, species_id_col, valid_ids):
-    """
-    Function to subset the species dataframe using a supplied id list.
-    This is used to filter out the excluded tree species.
-
-    :param species_df: DataFrame with tree species profile.
-    :param species_id_col: Species id column name as a string.
-    :param valid_ids: List of the compatible trees for the current farm.
-    :returns: A dataframe containing only compatible trees.
-    """
-    # Check if the list of id's is empty
-    if not valid_ids:
-        # Return an empty dataframe
-        return species_df.iloc[0:0]
-
-    # List of id's is not empty so make a set to provided faster membership checks and
-    # remove any duplicate id's automatically.
-    valid_set = set(valid_ids)
-
-    # Return the subset of the dataframe
-    return species_df[species_df[species_id_col].isin(valid_set)]
-
-
 def parse_prefs(prefs_raw):
     """
     Parse preferences ensuring they are a list.
@@ -163,56 +140,57 @@ def score_farms_species_by_id_list(
     # Initialise explanation to an empty dictionary
     explanations = {}
 
+    # Create a dictionary for species data so we don't have to filter the dataframe every loop
+    species_lookup = {row[species_id_col]: row for row in species_df.to_dict("records")}
+
     # Create a set of all the species ids in the species dataframe
-    all_species_ids = set(species_df[species_id_col].tolist())
+    all_species_ids = set(species_lookup.keys())
 
     # Loop through all rows of the farms dataframe
     for _, farm in farms_df.iterrows():
         # Get the farm id for the current farm
         farm_id = farm[farm_id_col]
 
-        # Call the exclusion function to get the list of compatible tress for the current farm
+        # Call the exclusion function to get the list of candidate tress for the current farm
         # return an empty list if the function returns None or is an empty list
-        compatible_species = get_valid_tree_ids(farm)
-        if compatible_species:
-            valid_ids = compatible_species
-        else:
-            valid_ids = []
-
-        # Create a dataframe by filtering out the excluded species
-        sub_df = subset_species_by_ids(species_df, species_id_col, valid_ids)
-
+        candidate_species_ids = get_valid_tree_ids(farm) or []
+        
         # Create a list of id's that are in the valid_id list but not found in the species dataframe
         # This should always be empty
-        unknown_ids = [id for id in valid_ids if id not in all_species_ids]
+        unknown_ids = [id for id in candidate_species_ids if id not in all_species_ids]
+
+        # Filter to only valid species for this farm
+        valid_ids = [id for id in candidate_species_ids if id in all_species_ids]
 
         # Create an empty list that will hold the explanations for the current farm
         farm_explanations = []
 
-        # Check if the filtered dataframe is empty. i.e. no compatible trees for this farm
-        if sub_df.empty:
+        # Check if there are no candidate trees for this farm
+        if not valid_ids:
+            # Handle empty case
             if unknown_ids:
-                farm_explanations.append(
+                explanations[farm_id] = [
                     {
                         "species_id": None,
                         "mcda_score": None,
                         "features": {},
                         "note": f"Exclusion function provided {len(unknown_ids)} unknown species_id(s): {unknown_ids[:5]}{'...' if len(unknown_ids) > 5 else ''}",
                     }
-                )
-                explanations[farm_id] = farm_explanations
+                ]
+            else:
+                explanations[farm_id] = []
             continue
 
         # Loop through each tree species in the filtered dataframe
-        for _, sp in sub_df.iterrows():
-            # Get the current species id
-            species_id = sp[species_id_col]
+        for species_id in valid_ids:
+            # Get species dictionary
+            sp = species_lookup[species_id]
 
             # Get the current species name
-            species_name = sp[species_name_col]
+            species_name = sp.get(species_name_col)
 
             # Get the current species common name
-            species_cname = sp[species_cname_col]
+            species_cname = sp.get(species_cname_col)
 
             # Create an empty dictionary to hold the scores from each feature
             feature_scores = {}
