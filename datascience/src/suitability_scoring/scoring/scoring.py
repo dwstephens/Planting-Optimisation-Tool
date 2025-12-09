@@ -146,8 +146,12 @@ def score_farms_species_by_id_list(
     # Create a set of all the species ids in the species dataframe
     all_species_ids = set(species_lookup.keys())
 
+    # Create a dictionary from dataframe
+    farms_dicts = farms_df.to_dict('records')
+
     # Loop through all rows of the farms dataframe
-    for _, farm in farms_df.iterrows():
+#    for _, farm in farms_df.iterrows():
+    for farm in farms_dicts:    
         # Get the farm id for the current farm
         farm_id = farm[farm_id_col]
 
